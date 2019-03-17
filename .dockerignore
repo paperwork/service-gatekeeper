@@ -1,0 +1,10 @@
+target
+.git/
+.gitignore
+.editorconfig
+*.sublime-project
+Dockerfile
+Makefile
+README*
+LICENSE
+test/
