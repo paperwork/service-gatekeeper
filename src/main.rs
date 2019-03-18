@@ -54,7 +54,9 @@ fn main() {
                 *req.headers_mut() = resolve_authorization_header(req.headers(), &json_string);
             }
 
-            if req.uri().path().starts_with("/users") {
+            if req.uri().path().starts_with("/users")
+            || req.uri().path().starts_with("/registration")
+            || req.uri().path().starts_with("/login") {
                 return hyper_reverse_proxy::call(remote_addr.ip(), &SERVICE_USERS, req)
             } else {
                 not_found(req)
