@@ -1,5 +1,5 @@
 #[macro_use]
-extern crate lazy_static;
+extern crate serde_derive;
 extern crate frank_jwt;
 use frank_jwt::{Algorithm, decode};
 use hyper::server::conn::AddrStream;
@@ -7,15 +7,25 @@ use hyper::header::{HeaderMap, HeaderValue};
 use hyper::{Body, Request, Response, Server, StatusCode};
 use hyper::service::{service_fn, make_service_fn};
 use futures::future::{self, Future};
+// use serde::{Deserialize, Serialize};
 use serde_json::json;
+// use serde_json::Result;
 use std::env;
 
 type BoxFut = Box<Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
-lazy_static! {
-    static ref PORT: String = env::var("PORT").unwrap_or_else(|_| panic!("Please set PORT to the port the gatekeeper should be running on!"));
-    static ref JWT_SECRET: String = env::var("JWT_SECRET").unwrap_or_else(|_| panic!("Please set JWT_SECRET to the secret service-users uses to generate JWT tokens!"));
-    static ref SERVICE_USERS: String = env::var("SERVICE_USERS").unwrap_or_else(|_| panic!("Please set SERVICE_USERS to the URL of service-users, e.g. http://service-users:8880"));
+#[derive(Serialize, Deserialize, Clone)]
+struct Config {
+    port: u16,
+    jwt_secret: String,
+    services: Vec<Service>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct Service {
+    name: String,
+    target: String,
+    endpoints: Vec<String>,
 }
 
 fn not_found(req: Request<Body>) -> BoxFut {
@@ -38,10 +48,12 @@ fn resolve_authorization_header(headers: &HeaderMap<HeaderValue>, resolved_autho
 }
 
 fn main() {
-    let server_port: u16 = PORT.parse().unwrap();
-    let addr = ([0, 0, 0, 0], server_port).into();
+    let config_json: String = env::var("CONFIG_JSON").unwrap_or_else(|_| panic!("Please set CONFIG_JSON to the JSON configuration you need!"));
+    let config: Config = serde_json::from_str(&config_json).unwrap_or_else(|_| panic!("CONFIG_JSON could not be parsed. Please check for errors!"));
+    let addr = ([0, 0, 0, 0], config.port).into();
 
-    let make_svc = make_service_fn(|socket: &AddrStream| {
+    let make_svc = make_service_fn(move |socket: &AddrStream| {
+        let cloned_config = config.clone();
         let remote_addr = socket.remote_addr();
         service_fn(move |mut req: Request<Body>| {
             let headers_map = req.headers();
@@ -49,18 +61,20 @@ fn main() {
                 let bearer_string = headers_map["authorization"].to_str().unwrap();
                 let bearer:Vec<_> = bearer_string.split(' ').collect();
                 let jwt = bearer[1].to_string();
-                let (_, payload) = decode(&jwt, &(*JWT_SECRET), Algorithm::HS512).unwrap();
+                let (_, payload) = decode(&jwt, &cloned_config.jwt_secret, Algorithm::HS512).unwrap();
                 let json_string = json!(payload).to_string();
                 *req.headers_mut() = resolve_authorization_header(req.headers(), &json_string);
             }
 
-            if req.uri().path().starts_with("/users")
-            || req.uri().path().starts_with("/registration")
-            || req.uri().path().starts_with("/login") {
-                return hyper_reverse_proxy::call(remote_addr.ip(), &SERVICE_USERS, req)
-            } else {
-                not_found(req)
+            for service in &cloned_config.services {
+                for endpoint in &service.endpoints {
+                    if req.uri().path().starts_with(endpoint) {
+                        return hyper_reverse_proxy::call(remote_addr.ip(), &service.target, req);
+                    }
+                }
             }
+
+            not_found(req)
         })
     });
 

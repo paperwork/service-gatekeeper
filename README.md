@@ -12,6 +12,14 @@ cargo build
 
 ## Running
 
+### Locally
+
 ```bash
-PORT=1337 JWT_SECRET='ru4XngBQ/uXZX4o/dTjy3KieL7OHkqeKwGH9KhClVnfpEaRcpw+rNvvSiC66dyiY' SERVICE_USERS="http://localhost:8880" ./target/debug/gatekeeper
+CONFIG_JSON=$(cat ./config.json | jq -c -r) ./target/debug/gatekeeper
+```
+
+### Docker
+
+```bash
+docker run -it --rm --name service-gateway --env $(cat ./config.json | jq -c -r) paperwork/service-gateway
 ```
