@@ -11,6 +11,7 @@ use futures::future::{self, Future};
 use serde_json::json;
 // use serde_json::Result;
 use std::env;
+use std::time::SystemTime;
 
 type BoxFut = Box<Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
@@ -29,9 +30,16 @@ struct Service {
 }
 
 fn not_found(req: Request<Body>) -> BoxFut {
-    println!("{:?}", req);
+    println!("Not found: {:?}", req);
     let mut response = Response::new(Body::empty());
     *response.status_mut() = StatusCode::NOT_FOUND;
+    Box::new(future::ok(response))
+}
+
+fn unauthorized(req: Request<Body>) -> BoxFut {
+    println!("Unauthorized: {:?}", req);
+    let mut response = Response::new(Body::empty());
+    *response.status_mut() = StatusCode::UNAUTHORIZED;
     Box::new(future::ok(response))
 }
 
@@ -61,7 +69,17 @@ fn main() {
                 let bearer_string = headers_map["authorization"].to_str().unwrap();
                 let bearer:Vec<_> = bearer_string.split(' ').collect();
                 let jwt = bearer[1].to_string();
-                let (_, payload) = decode(&jwt, &cloned_config.jwt_secret, Algorithm::HS512).unwrap();
+                let payload = match decode(&jwt, &cloned_config.jwt_secret, Algorithm::HS512) {
+                    Ok((_header, payload)) => payload,
+                    Err(_e) => return unauthorized(req),
+                };
+
+                let exp = payload["exp"].as_u64().unwrap();
+                let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+                if now.as_secs() > exp {
+                    return unauthorized(req)
+                }
+
                 let json_string = json!(payload).to_string();
                 *req.headers_mut() = resolve_authorization_header(req.headers(), &json_string);
             }
