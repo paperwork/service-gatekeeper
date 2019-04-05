@@ -1,0 +1,15 @@
+{
+    "port": 1337,
+    "jwt_secret": "ru4XngBQ/uXZX4o/dTjy3KieL7OHkqeKwGH9KhClVnfpEaRcpw+rNvvSiC66dyiY",
+    "services": [
+        {
+            "name": "users",
+            "target": "http://localhost:8880",
+            "endpoints": [
+                "/users",
+                "/registration",
+                "/login"
+            ]
+        }
+    ]
+}
