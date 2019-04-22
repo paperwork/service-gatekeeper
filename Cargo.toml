@@ -1,5 +1,5 @@
 [package]
-name = "gatekeeper"
+name = "paperwork_service_gatekeeper"
 version = "0.1.0"
 authors = ["Marius <marius@twostairs.com>"]
 edition = "2018"
