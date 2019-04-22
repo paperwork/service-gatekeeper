@@ -10,9 +10,9 @@
 # ╚════════════════════════════════════════════════════════════════════════════╝
 .PHONY: help build run local-build local-build-develop local-run local-run-develop
 
-APP_NAME ?= `grep 'name.*=' Cargo.toml | sed -e 's/^name *= *"//g' -e 's/"//g'` ##@Variables The service name
-APP_VSN ?= `grep 'version.*=' Cargo.toml | sed -e 's/^version *= *"//g' -e 's/"//g'` ##@Variables The service version
-BUILD ?= `git rev-parse --short HEAD` ##@Variables The build hash
+APP_NAME ?= `grep 'name.*=' Cargo.toml | sed -e 's/^name *= *"//g' -e 's/"//g' | tr -d '[:space:]'` ##@Variables The service name
+APP_VSN ?= `grep 'version.*=' Cargo.toml | sed -e 's/^version *= *"//g' -e 's/"//g' | tr -d '[:space:]'` ##@Variables The service version
+BUILD ?= `git rev-parse --short HEAD | tr -d '[:space:]'` ##@Variables The build hash
 
 FN_HELP = \
 	%help; while(<>){push@{$$help{$$2//'options'}},[$$1,$$3] \
@@ -22,18 +22,18 @@ FN_HELP = \
 
 help: ##@Miscellaneous Show this help
 	@echo "Usage: make [target] <var> ...\n"
-	@echo "$(APP_NAME):$(APP_VSN)-$(BUILD)"
+	@echo "$(strip $(APP_NAME)):$(strip $(APP_VSN))-$(strip $(BUILD))"
 	@perl -e '$(FN_HELP)' $(MAKEFILE_LIST)
 
 build: ##@Docker Build service
-	docker build --build-arg APP_NAME=$(APP_NAME) \
-		--build-arg APP_VSN=$(APP_VSN) \
-		-t $(APP_NAME):$(APP_VSN)-$(BUILD) \
-		-t $(APP_NAME):latest .
+	docker build --build-arg APP_NAME="$(strip $(APP_NAME))" \
+		--build-arg APP_VSN="$(strip $(APP_VSN))" \
+		-t "$(strip $(APP_NAME)):$(strip $(APP_VSN))-$(strip $(BUILD))" \
+		-t "$(strip $(APP_NAME)):latest" .
 
 run: ##@Docker Run service locally
 	docker run --env-file config/docker.env \
-		--rm -it $(APP_NAME):latest
+		--rm -it "$(strip $(APP_NAME)):latest"
 
 local-build-develop: ##@Local Build service (target: debug) locally
 	cargo build
