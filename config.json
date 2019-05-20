@@ -19,10 +19,10 @@
             ]
         },
         {
-            "name": "storages",
+            "name": "attachments",
             "target": "http://localhost:8883",
             "endpoints": [
-                "/storages"
+                "/attachments"
             ]
         }
     ]
