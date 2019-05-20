@@ -17,6 +17,13 @@
             "endpoints": [
                 "/notes"
             ]
+        },
+        {
+            "name": "storages",
+            "target": "http://localhost:8883",
+            "endpoints": [
+                "/storages"
+            ]
         }
     ]
 }
