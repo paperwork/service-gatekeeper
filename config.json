@@ -24,6 +24,13 @@
             "endpoints": [
                 "/attachments"
             ]
+        },
+        {
+            "name": "profile_photos",
+            "target": "http://localhost:8883",
+            "endpoints": [
+                "/profile_photos"
+            ]
         }
     ]
 }
