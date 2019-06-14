@@ -42,7 +42,7 @@ local-build: ##@Local Build service (target: release) locally
 	cargo build --release
 
 local-run-develop: ##@Local Run service (target: debug) locally
-	CONFIG_JSON='$(shell cat ./config.json | jq -c -r)' ./target/debug/gatekeeper
+	CONFIG_JSON='$(shell cat ./config.json | jq -c -r)' ./target/debug/paperwork_service_gatekeeper
 
 local-run: ##@Local Run service (target: release) locally
-	CONFIG_JSON='$(shell cat ./config.json | jq -c -r)' ./target/release/gatekeeper
+	CONFIG_JSON='$(shell cat ./config.json | jq -c -r)' ./target/release/paperwork_service_gatekeeper

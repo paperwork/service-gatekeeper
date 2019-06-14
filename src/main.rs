@@ -12,6 +12,8 @@ use serde_json::json;
 // use serde_json::Result;
 use std::env;
 use std::time::SystemTime;
+use std::collections::HashMap;
+use url::Url;
 
 type BoxFut = Box<Future<Item=Response<Body>, Error=hyper::Error> + Send>;
 
@@ -46,13 +48,71 @@ fn unauthorized(req: Request<Body>) -> BoxFut {
 fn resolve_authorization_header(headers: &HeaderMap<HeaderValue>, resolved_authorization: &str) -> HeaderMap<HeaderValue> {
     let mut result = HeaderMap::new();
     for (k, v) in headers.iter() {
-        if k.as_str() == "authorization" {
-            result.insert(k.clone(), HeaderValue::from_str(resolved_authorization).unwrap());
-        } else {
-            result.insert(k.clone(), v.clone());
-        }
+        result.insert(k.clone(), v.clone());
     }
+
+    result.insert("authorization", HeaderValue::from_str(resolved_authorization).unwrap());
+    println!("resolve_authorization_header: {:?}", result);
+
     result
+}
+
+fn get_json_from_jwt(config: Config, jwt: String) -> Option<String> {
+    let payload = match decode(&jwt, &config.jwt_secret, Algorithm::HS512) {
+        Ok((_header, payload)) => payload,
+        Err(err) => {
+            println!("get_json_from_jwt: Error {:?}", err);
+            return None;
+        },
+    };
+
+    println!("get_json_from_jwt: Ok {:?}", payload);
+
+    let exp = payload["exp"].as_u64().unwrap();
+    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+    if now.as_secs() > exp {
+        println!("get_json_from_jwt: JWT expired!");
+        return None;
+    }
+
+    return Some(json!(payload).to_string());
+}
+
+fn get_access_token_from_headers(req: &Request<Body>) -> Option<String> {
+    let headers_map = req.headers();
+
+    println!("Checking headers for access token: {:?}", headers_map);
+
+    if headers_map.contains_key("authorization") {
+        println!("Found authorization key!");
+
+        let bearer_string = headers_map["authorization"].to_str().unwrap();
+        let bearer:Vec<_> = bearer_string.split(' ').collect();
+        return Some(bearer[1].to_string());
+    }
+
+    return None;
+}
+
+fn get_access_token_from_params(req: &Request<Body>) -> Option<String> {
+    let uri_string = req.uri().to_string();
+    println!("{:?}", uri_string);
+    let request_url = match Url::parse(&["http://localhost", &uri_string].concat()) {
+        Ok(url) => url,
+        Err(err) => {
+            println!("{:?}", err);
+            return None;
+        },
+    };
+
+    let params: HashMap<_, _> = request_url.query_pairs().into_owned().collect();
+
+    println!("Checking params for access token: {:?}", params);
+
+    return match params.get("_accessToken") {
+        Some(acc_tok) => Some(acc_tok.to_string()),
+        None => None
+    }
 }
 
 fn main() {
@@ -64,24 +124,24 @@ fn main() {
         let cloned_config = config.clone();
         let remote_addr = socket.remote_addr();
         service_fn(move |mut req: Request<Body>| {
-            let headers_map = req.headers();
-            if headers_map.contains_key("authorization") {
-                let bearer_string = headers_map["authorization"].to_str().unwrap();
-                let bearer:Vec<_> = bearer_string.split(' ').collect();
-                let jwt = bearer[1].to_string();
-                let payload = match decode(&jwt, &cloned_config.jwt_secret, Algorithm::HS512) {
-                    Ok((_header, payload)) => payload,
-                    Err(_e) => return unauthorized(req),
-                };
+            let access_token = match get_access_token_from_headers(&req) {
+                Some(acc_tok) => Some(acc_tok),
+                None => get_access_token_from_params(&req),
+            };
 
-                let exp = payload["exp"].as_u64().unwrap();
-                let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-                if now.as_secs() > exp {
-                    return unauthorized(req)
+            match access_token {
+                Some(acc_tok) => {
+                    println!("Access token: {:?}", acc_tok);
+                    let json_string = match get_json_from_jwt(cloned_config.clone(), acc_tok) {
+                        Some(json_from_jwt) => json_from_jwt,
+                        None => return unauthorized(req),
+                    };
+
+                    *req.headers_mut() = resolve_authorization_header(req.headers(), &json_string);
+                },
+                _ => {
+                    println!("Access token: -");
                 }
-
-                let json_string = json!(payload).to_string();
-                *req.headers_mut() = resolve_authorization_header(req.headers(), &json_string);
             }
 
             for service in &cloned_config.services {
