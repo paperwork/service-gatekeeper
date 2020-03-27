@@ -13,9 +13,10 @@ use serde_json::json;
 use std::env;
 use std::time::SystemTime;
 use std::collections::HashMap;
+use std::pin::Pin;
 use url::Url;
 
-type BoxFut = Box<Future<Item=Response<Body>, Error=hyper::Error> + Send>;
+type BoxFut = Pin<Box<dyn Future<Output = Result<Response<Body>, hyper::Error>> + Send>>;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Config {
@@ -115,7 +116,8 @@ fn get_access_token_from_params(req: &Request<Body>) -> Option<String> {
     }
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let config_json: String = env::var("CONFIG_JSON").unwrap_or_else(|_| panic!("Please set CONFIG_JSON to the JSON configuration you need!"));
     let config: Config = serde_json::from_str(&config_json).unwrap_or_else(|_| panic!("CONFIG_JSON could not be parsed. Please check for errors!"));
     let addr = ([0, 0, 0, 0], config.port).into();
@@ -158,5 +160,8 @@ fn main() {
 
     let server = Server::bind(&addr).serve(make_svc).map_err(|e| eprintln!("Server error: {}", e));
     println!("Running server on {:?}", addr);
-    hyper::rt::run(server);
+
+    if let Err(e) = server.await {
+        eprintln!("server error: {}", e);
+    }
 }

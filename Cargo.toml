@@ -6,10 +6,11 @@ edition = "2018"
 
 [dependencies]
 hyper-reverse-proxy = "0.4.0"
-hyper = "0.12.29"
-futures = "0.1.27"
-frank_jwt = "3.1.1"
-serde = "1.0.92"
-serde_derive = "1.0.92"
-serde_json = "1.0.39"
-url = "1.7.2"
+hyper = "0.13"
+tokio = { version = "0.2", features = ["full"] }
+futures = "0.3.4"
+frank_jwt = "3.1.2"
+serde = "1.0.105"
+serde_derive = "1.0.105"
+serde_json = "1.0.48"
+url = "2.1.1"
