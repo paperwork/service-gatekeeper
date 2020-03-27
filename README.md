@@ -4,22 +4,36 @@ service-gatekeeper
 
 Gatekeeper Service
 
-## Building
+## Prerequisites
+
+### Docker
+
+Get [Docker Desktop](https://www.docker.com/products/docker-desktop).
+
+### Rust
+
+On MacOS using [brew](https://brew.sh):
 
 ```bash
-cargo build
+% brew install rust
+```
+
+### Paperwork local development environment
+
+Please refer to the [documentation](https://github.com/paperwork/paperwork/#local-development-environment).
+
+## Building
+
+Fetching all dependencies and compiling:
+
+```bash
+% make local-build-develop
 ```
 
 ## Running
 
-### Locally
+**Note:** Before starting this service the local development environment needs to be running!
 
 ```bash
-CONFIG_JSON=$(cat ./config.json | jq -c -r) ./target/debug/gatekeeper
-```
-
-### Docker
-
-```bash
-docker run -it --rm --name service-gateway --env $(cat ./config.json | jq -c -r) paperwork/service-gateway
+% make local-run-develop
 ```
