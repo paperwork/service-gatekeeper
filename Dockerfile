@@ -19,7 +19,7 @@ ENV APP_NAME=${APP_NAME} \
 # Fix for Rust package depending on an older version of libgit2
 RUN apk upgrade && apk add libgit2
 
-RUN sed -i -e 's/v[[:digit:]]\.[[:digit:]]/edge/g' /etc/apk/repositories \
+RUN sed -i -e 's/v[[:digit:]]+\.[[:digit:]]+/edge/g' /etc/apk/repositories \
  # && apk upgrade --update-cache --available \
  && apk add rust cargo openssl openssl-dev
 
