@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate frank_jwt;
-use frank_jwt::{Algorithm, decode};
+use frank_jwt::{Algorithm, decode, ValidationOptions};
 use hyper::server::conn::AddrStream;
 use hyper::header::{HeaderMap, HeaderValue};
 use hyper::{Body, Request, Response, Server, StatusCode};
@@ -59,7 +59,7 @@ fn resolve_authorization_header(headers: &HeaderMap<HeaderValue>, resolved_autho
 }
 
 fn get_json_from_jwt(config: Config, jwt: String) -> Option<String> {
-    let payload = match decode(&jwt, &config.jwt_secret, Algorithm::HS512) {
+    let payload = match decode(&jwt, &config.jwt_secret, Algorithm::HS512, &ValidationOptions::default()) {
         Ok((_header, payload)) => payload,
         Err(err) => {
             println!("get_json_from_jwt: Error {:?}", err);
